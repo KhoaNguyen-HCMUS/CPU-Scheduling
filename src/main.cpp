@@ -1,30 +1,30 @@
 #include <iostream>
-#include <sstream>
 #include <fstream>
+#include <sstream>
 #include <vector>
-#include <algorithm>
+#include <deque>
 #include <string>
-#include <queue>
+#include <algorithm>
+#include <map>
+
+#include "task.h"
+#include "process.h"
+#include "scheduler.h"
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
-  if (argc != 3) {
-    cerr << "Usage: " << argv[0] << " <inputFile> <outputFile>\n";
-    return EXIT_FAILURE;
+int main(int argc, char* argv[]) {
+  // Check command-line arguments.
+  if (argc < 3) {
+    cerr << "Usage: " << argv[0] << " <INPUT_FILE> <OUTPUT_FILE>" << endl;
+    return 1;
   }
 
-  string inputFile = argv[1];
-  string outputFile = argv[2];
+  string inputFileName = argv[1];
+  string outputFileName = argv[2];
 
-  scheduler *s = new scheduler(argv[1]);
-  s->run();
-  s->exportOutput(argv[2]);
-
-  delete s;
-
-  cout << "\n CPU scheduling successful, output written to " << outputFile
-       << endl;
-
-  return EXIT_SUCCESS;
+  Scheduler scheduler;
+  scheduler.readInput(inputFileName);
+  scheduler.schedule();
+  scheduler.writeOutput(outputFileName);
 }
