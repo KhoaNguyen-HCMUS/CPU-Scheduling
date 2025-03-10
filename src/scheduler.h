@@ -47,5 +47,18 @@ class Scheduler {
 
   void readInput(string inputFileName);
   void schedule();
+  void handlePendingResources();
+  bool checkTermination();
+  void checkArrivals();
+  void scheduleFCFS();
+  void scheduleRR();
+  void scheduleSJF();
+  void scheduleSRTN();
+  void processCPUBurst();
+  void completeCPUExecution();
+  void scheduleResource(int resId);
+  void completeResourceExecution(int &runningRes);
+  void updateWaitingTime();
+  void determineLastCpuBusyTime();
   void writeOutput(string outputFileName);
 };

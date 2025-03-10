@@ -105,196 +105,181 @@ void Scheduler::readInput(string inputFileName) {
 }
 
 void Scheduler::schedule() {
-  // Main simulation loop (step by step until all processes are finished)
-
+  //Vòng lặp chính của hệ thống
   while (true) {
-    // At the beginning of the simulation step, add pending resource processes
-    // to resource queues.
-    if (!pendingResource.empty()) {
-      for (int idx : pendingResource) {
-        int resId = procList[idx].tasks[procList[idx].curTask].resourceId;
-        procList[idx].state = READY_RES;
-        if (resId == 1)
-          resQueue1.push_back(idx);
-        else
-          resQueue2.push_back(idx);
-      }
-      pendingResource.clear();
+    handlePendingResources(); //Xử lý các R đang chờ
+    if (checkTermination()) break; //Kiểm tra điều kiện kết thúc
+    checkArrivals();  //Kiểm tra các tiến trình mới
+    if (algorithm == 1)
+      scheduleFCFS();
+    else if (algorithm == 2)
+      scheduleRR();
+    else if (algorithm == 3)
+      scheduleSJF();
+    else if (algorithm == 4)
+      scheduleSRTN();
+    processCPUBurst();  //Xử lý CPU đang chạy
+    scheduleResource(1); //Xử lý R1
+    scheduleResource(2);  //Xử lý R2
+    updateWaitingTime();  //Cập nhật thời gian chờ (nếu có)
+    time++; //Tăng thời gian hệ thống
+  }
+  determineLastCpuBusyTime(); //Xác định thời gian cuối cùng CPU chạy
+}
+
+void Scheduler::handlePendingResources() {
+  if (!pendingResource.empty()) {
+    for (int idx : pendingResource) {
+      int resId = procList[idx].tasks[procList[idx].curTask].resourceId;
+      procList[idx].state = READY_RES;
+      (resId == 1 ? resQueue1 : resQueue2).push_back(idx);
     }
-    // Termination: if all processes are finished and no process is in any
-    // queue or running
-    if (finishedCount == numProc && runningCPU == -1 && cpuQueue.empty() &&
-        runningRes1 == -1 && runningRes2 == -1 && resQueue1.empty() &&
-        resQueue2.empty())
-      break;
-    // (1) Check for arrivals at current time.
+    pendingResource.clear();
+  }
+}
 
-    for (int i = 0; i < numProc; i++) {
-      if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
-        procList[i].state = READY_CPU;
-        cpuQueue.push_back(i);
-      }
-    }
+bool Scheduler::checkTermination() {
+  return finishedCount == numProc && runningCPU == -1 && cpuQueue.empty() &&
+         runningRes1 == -1 && runningRes2 == -1 && resQueue1.empty() &&
+         resQueue2.empty();
+}
 
-    // (2) CPU Scheduling:
-    // If no process is running on CPU, choose one from the ready queue.
-    if (runningCPU == -1 && !cpuQueue.empty()) {
-      int idx = -1;
-      if (algorithm == 1 || algorithm == 2) {
-        // FCFS or Round Robin: select the first process in the queue.
-        idx = cpuQueue.front();
-        cpuQueue.pop_front();
-      } else if (algorithm == 3) {
-        // SJF: choose the process with the smallest remaining CPU burst.
-        auto it =
-            min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-              return procList[a].remainingTime < procList[b].remainingTime;
-            });
-        idx = *it;
-        cpuQueue.erase(it);
-      } else if (algorithm == 4) {
-        // SRTN: choose process with smallest remaining time.
-        auto it =
-            min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-              return procList[a].remainingTime < procList[b].remainingTime;
-            });
-        idx = *it;
-        cpuQueue.erase(it);
-      }
-      runningCPU = idx;
-      procList[idx].state = RUNNING_CPU;
-
-      // For Round Robin, reset the quantum.
-      if (algorithm == 2) currentQuantum = quantum;
-    }
-
-    // For SRTN, check if a process in cpuQueue has a shorter remaining burst
-    // than the one on CPU.
-    if (runningCPU != -1 && algorithm == 4 && !cpuQueue.empty()) {
-      auto it =
-          min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-            return procList[a].remainingTime < procList[b].remainingTime;
-          });
-      int candidate = *it;
-      if (procList[candidate].remainingTime <
-          procList[runningCPU].remainingTime) {
-        // Preempt the running process.
-        procList[runningCPU].state = READY_CPU;
-        cpuQueue.push_back(runningCPU);
-        runningCPU = candidate;
-        cpuQueue.erase(it);
-        procList[runningCPU].state = RUNNING_CPU;
-      }
-    }
-
-    // (3) CPU burst processing.
-    if (runningCPU != -1) {
-      procList[runningCPU].remainingTime--;
-      cpuTimeline.push_back(to_string(procList[runningCPU].id));
-      if (procList[runningCPU].remainingTime == 0) {
-        procList[runningCPU].curTask++;
-        if (procList[runningCPU].curTask < procList[runningCPU].tasks.size() &&
-            !procList[runningCPU].tasks[procList[runningCPU].curTask].isCPU) {
-          // Next burst is a resource burst: add to pendingResource.
-          pendingResource.push_back(runningCPU);
-        } else {
-          // No further task: process is finished.
-          procList[runningCPU].state = FINISHED;
-          procList[runningCPU].finishTime = time + 1;
-          finishedCount++;
-        }
-        runningCPU = -1;
-      } else {
-        // For Round Robin: if quantum expires, preempt.
-        if (algorithm == 2) {
-          currentQuantum--;
-          if (currentQuantum == 0) {
-            procList[runningCPU].state = READY_CPU;
-            cpuQueue.push_back(runningCPU);
-            runningCPU = -1;
-          }
-        }
-      }
-    } else {
-      cpuTimeline.push_back("_");
-    }
-
-    // (4) Resource scheduling for Resource 1 (R1).
-    if (runningRes1 == -1 && !resQueue1.empty()) {
-      int idx = resQueue1.front();
-      resQueue1.pop_front();
-      runningRes1 = idx;
-      procList[idx].state = RUNNING_RES;
-
-      // Set remainingTime to the burst length (for the resource burst).
-      procList[idx].remainingTime =
-          procList[idx].tasks[procList[idx].curTask].time;
-    }
-
-    if (runningRes1 != -1) {
-      procList[runningRes1].remainingTime--;
-      resTimeline1.push_back(to_string(procList[runningRes1].id));
-      if (procList[runningRes1].remainingTime == 0) {
-        procList[runningRes1].curTask++;
-        if (procList[runningRes1].curTask <
-                procList[runningRes1].tasks.size() &&
-            procList[runningRes1].tasks[procList[runningRes1].curTask].isCPU) {
-          procList[runningRes1].state = READY_CPU;
-          procList[runningRes1].remainingTime =
-              procList[runningRes1].tasks[procList[runningRes1].curTask].time;
-          cpuQueue.push_back(runningRes1);
-        } else {
-          procList[runningRes1].state = FINISHED;
-          procList[runningRes1].finishTime = time + 1;
-          finishedCount++;
-        }
-        runningRes1 = -1;
-      }
-    } else {
-      resTimeline1.push_back("_");
-    }
-
-    // (5) Resource scheduling for Resource 2 (R2).
-    if (runningRes2 == -1 && !resQueue2.empty()) {
-      int idx = resQueue2.front();
-      resQueue2.pop_front();
-      runningRes2 = idx;
-      procList[idx].state = RUNNING_RES;
-      procList[idx].remainingTime =
-          procList[idx].tasks[procList[idx].curTask].time;
-    }
-
-    if (runningRes2 != -1) {
-      procList[runningRes2].remainingTime--;
-      resTimeline2.push_back(to_string(procList[runningRes2].id));
-      if (procList[runningRes2].remainingTime == 0) {
-        procList[runningRes2].curTask++;
-        if (procList[runningRes2].curTask <
-                procList[runningRes2].tasks.size() &&
-            procList[runningRes2].tasks[procList[runningRes2].curTask].isCPU) {
-          procList[runningRes2].state = READY_CPU;
-          procList[runningRes2].remainingTime =
-              procList[runningRes2].tasks[procList[runningRes2].curTask].time;
-          cpuQueue.push_back(runningRes2);
-        } else {
-          procList[runningRes2].state = FINISHED;
-          procList[runningRes2].finishTime = time + 1;
-          finishedCount++;
-        }
-        runningRes2 = -1;
-      }
-    } else {
-      resTimeline2.push_back("_");
-    }
-
-    // Increment time for the next step.
-    time++;
-
-    // Increment waiting time for processes in the CPU queue.
-    for (int idx : cpuQueue) {
-      procList[idx].waitingTime++;
+void Scheduler::checkArrivals() {
+  for (int i = 0; i < numProc; i++) {
+    if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
+      procList[i].state = READY_CPU;
+      cpuQueue.push_back(i);
     }
   }
+}
+
+void Scheduler::scheduleFCFS() {
+  if (runningCPU == -1 && !cpuQueue.empty()) {
+    runningCPU = cpuQueue.front();
+    cpuQueue.pop_front();
+    procList[runningCPU].state = RUNNING_CPU;
+  }
+}
+
+void Scheduler::scheduleRR() {
+  if (runningCPU == -1 && !cpuQueue.empty()) {
+    runningCPU = cpuQueue.front();
+    cpuQueue.pop_front();
+    procList[runningCPU].state = RUNNING_CPU;
+    currentQuantum = quantum;
+  }
+}
+
+void Scheduler::scheduleSJF() {
+  if (runningCPU == -1 && !cpuQueue.empty()) {
+    auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
+      return procList[a].remainingTime < procList[b].remainingTime;
+    });
+    runningCPU = *it;
+    cpuQueue.erase(it);
+    procList[runningCPU].state = RUNNING_CPU;
+  }
+}
+
+void Scheduler::scheduleSRTN() {
+  if (runningCPU == -1 && !cpuQueue.empty()) {
+    auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
+      return procList[a].remainingTime < procList[b].remainingTime;
+    });
+    runningCPU = *it;
+    cpuQueue.erase(it);
+    procList[runningCPU].state = RUNNING_CPU;
+  } else if (runningCPU != -1 && !cpuQueue.empty()) {
+    auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
+      return procList[a].remainingTime < procList[b].remainingTime;
+    });
+    int candidate = *it;
+    if (procList[candidate].remainingTime <
+        procList[runningCPU].remainingTime) {
+      procList[runningCPU].state = READY_CPU;
+      cpuQueue.push_back(runningCPU);
+      runningCPU = candidate;
+      cpuQueue.erase(it);
+      procList[runningCPU].state = RUNNING_CPU;
+    }
+  }
+}
+
+void Scheduler::processCPUBurst() {
+  if (runningCPU == -1) {
+    cpuTimeline.push_back("_");
+    return;
+  }
+
+  procList[runningCPU].remainingTime--;
+  cpuTimeline.push_back(to_string(procList[runningCPU].id));
+
+  if (procList[runningCPU].remainingTime == 0) {
+    completeCPUExecution();
+  } else if (algorithm == 2 && --currentQuantum == 0) {
+    procList[runningCPU].state = READY_CPU;
+    cpuQueue.push_back(runningCPU);
+    runningCPU = -1;
+  }
+}
+
+void Scheduler::completeCPUExecution() {
+  procList[runningCPU].curTask++;
+  if (procList[runningCPU].curTask < procList[runningCPU].tasks.size() &&
+      !procList[runningCPU].tasks[procList[runningCPU].curTask].isCPU) {
+    pendingResource.push_back(runningCPU);
+  } else {
+    procList[runningCPU].state = FINISHED;
+    procList[runningCPU].finishTime = time + 1;
+    finishedCount++;
+  }
+  runningCPU = -1;
+}
+
+void Scheduler::scheduleResource(int resId) {
+  int &runningRes = (resId == 1) ? runningRes1 : runningRes2;
+  deque<int> &resQueue = (resId == 1) ? resQueue1 : resQueue2;
+  vector<string> &resTimeline = (resId == 1) ? resTimeline1 : resTimeline2;
+
+  if (runningRes == -1 && !resQueue.empty()) {
+    runningRes = resQueue.front();
+    resQueue.pop_front();
+    procList[runningRes].state = RUNNING_RES;
+    procList[runningRes].remainingTime =
+        procList[runningRes].tasks[procList[runningRes].curTask].time;
+  }
+
+  if (runningRes != -1) {
+    procList[runningRes].remainingTime--;
+    resTimeline.push_back(to_string(procList[runningRes].id));
+    if (procList[runningRes].remainingTime == 0)
+      completeResourceExecution(runningRes);
+  } else {
+    resTimeline.push_back("_");
+  }
+}
+
+void Scheduler::completeResourceExecution(int &runningRes) {
+  procList[runningRes].curTask++;
+  if (procList[runningRes].curTask < procList[runningRes].tasks.size() &&
+      procList[runningRes].tasks[procList[runningRes].curTask].isCPU) {
+    procList[runningRes].state = READY_CPU;
+    procList[runningRes].remainingTime =
+        procList[runningRes].tasks[procList[runningRes].curTask].time;
+    cpuQueue.push_back(runningRes);
+  } else {
+    procList[runningRes].state = FINISHED;
+    procList[runningRes].finishTime = time + 1;
+    finishedCount++;
+  }
+  runningRes = -1;
+}
+
+void Scheduler::updateWaitingTime() {
+  for (int idx : cpuQueue) procList[idx].waitingTime++;
+}
+
+void Scheduler::determineLastCpuBusyTime() {
   for (int i = cpuTimeline.size() - 1; i >= 0; i--) {
     if (cpuTimeline[i] != "_") {
       lastCpuBusy = i;
