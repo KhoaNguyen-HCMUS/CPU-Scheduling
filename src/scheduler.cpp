@@ -105,11 +105,11 @@ void Scheduler::readInput(string inputFileName) {
 }
 
 void Scheduler::schedule() {
-  //Vòng lặp chính của hệ thống
+  // Vòng lặp chính của hệ thống
   while (true) {
-    handlePendingResources(); //Xử lý các R đang chờ
-    if (checkTermination()) break; //Kiểm tra điều kiện kết thúc
-    checkArrivals();  //Kiểm tra các tiến trình mới
+    handlePendingResources();       // Xử lý các R đang chờ
+    if (checkTermination()) break;  // Kiểm tra điều kiện kết thúc
+    checkArrivals();                // Kiểm tra các tiến trình mới
     if (algorithm == 1)
       scheduleFCFS();
     else if (algorithm == 2)
@@ -118,13 +118,14 @@ void Scheduler::schedule() {
       scheduleSJF();
     else if (algorithm == 4)
       scheduleSRTN();
-    processCPUBurst();  //Xử lý CPU đang chạy
-    scheduleResource(1); //Xử lý R1
-    scheduleResource(2);  //Xử lý R2
-    updateWaitingTime();  //Cập nhật thời gian chờ (nếu có)
-    time++; //Tăng thời gian hệ thống
+    processCPUBurst();    // Xử lý CPU đang chạy
+    scheduleResource(1);  // Xử lý R1
+    scheduleResource(2);  // Xử lý R2
+    updateWaitingTime();  // Cập nhật thời gian chờ (nếu có)
+    time++;               // Tăng thời gian hệ thống
   }
-  determineLastCpuBusyTime(); //Xác định thời gian cuối cùng CPU chạy
+  determineLastCpuBusyTime();        // Xác định thời gian cuối cùng CPU chạy
+  adjustWaitingTimeAfterResource();  // Điều chỉnh thời gian chờ sau R
 }
 
 void Scheduler::handlePendingResources() {
@@ -284,6 +285,28 @@ void Scheduler::determineLastCpuBusyTime() {
     if (cpuTimeline[i] != "_") {
       lastCpuBusy = i;
       break;
+    }
+  }
+}
+
+void Scheduler::adjustWaitingTimeAfterResource() {
+  for (const auto &p : procList) {
+    // Check if process has multiple tasks
+    if (p.tasks.size() > 1) {
+      bool hasResourceFollowedByCPU = false;
+
+      // Check for pattern: Resource followed by CPU
+      for (size_t i = 0; i < p.tasks.size() - 1; i++) {
+        if (!p.tasks[i].isCPU && p.tasks[i + 1].isCPU) {
+          hasResourceFollowedByCPU = true;
+          break;
+        }
+      }
+
+      // If pattern found and process is finished, adjust waiting time
+      if (hasResourceFollowedByCPU && p.state == FINISHED) {
+        procList[p.id - 1].waitingTime--;  // Subtract one unit
+      }
     }
   }
 }

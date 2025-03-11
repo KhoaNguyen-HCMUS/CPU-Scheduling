@@ -60,5 +60,6 @@ class Scheduler {
   void completeResourceExecution(int &runningRes);
   void updateWaitingTime();
   void determineLastCpuBusyTime();
+  void adjustWaitingTimeAfterResource();
   void writeOutput(string outputFileName);
 };
