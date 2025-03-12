@@ -303,17 +303,19 @@ void Scheduler::updateWaitingTime(int curRunningProcess) {
         // New arrival - count from arrival time
         if (time >= procList[idx].arrival) {
           procList[idx].waitingTime++;
-          cout << "Process " << idx + 1
-               << " waiting time: " << procList[idx].waitingTime << " at time "
-               << time << endl;
+          // cout << "Process " << idx + 1
+          //      << " waiting time: " << procList[idx].waitingTime << " at time
+          //      "
+          //      << time << endl;
         }
       } else {
         // Process returning from resource
         if (time > procList[idx].readyCpuTime) {
           procList[idx].waitingTime++;
-          cout << "Process " << idx + 1
-               << " waiting time: " << procList[idx].waitingTime << " at time "
-               << time << endl;
+          // cout << "Process " << idx + 1
+          //      << " waiting time: " << procList[idx].waitingTime << " at time
+          //      "
+          //      << time << endl;
         }
       }
     }
