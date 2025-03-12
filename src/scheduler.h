@@ -13,32 +13,32 @@ using namespace std;
 
 class Scheduler {
  private:
-  int algorithm;
-  int quantum;
-  int numProc;
-  vector<Process> procList;
+  int algorithm;             // Thuật toán lập lịch
+  int quantum;               // Quantum của Round Robin
+  int numProc;               // Số tiến trình
+  vector<Process> procList;  // Danh sách các tiến trình
 
-  int time;
-  int finishedCount;
+  int time;           // Thời gian hiện tại
+  int finishedCount;  // Số tiến trình đã hoàn thành
 
-  int runningCPU;      // index of process running on CPU (-1 means idle)
+  int runningCPU;  // index của tiến trình đang chạy CPU (>=0) hoặc rãnh (-1)
   int currentQuantum;  // for Round Robin
 
-  deque<int> cpuQueue;   // indices of processes ready for CPU
+  deque<int> cpuQueue;   // CPU waiting queue
   deque<int> resQueue1;  // resource R1 waiting queue
   deque<int> resQueue2;  // resource R2 waiting queue
 
-  // Gantt chart records (each time unit one entry)
+  // Timeline của CPU và các resource
   vector<string> cpuTimeline;
   vector<string> resTimeline1;
   vector<string> resTimeline2;
 
-  // Resource usage: which process (index) is currently using the resource
+  // Trạng thái của resource
+  // -1: rãnh, >=0: index của tiến trình đang chạy resource
   int runningRes1;
   int runningRes2;
 
-  // Vector to hold processes that finished CPU burst and should start their R
-  // burst in the next step.
+  // Vector các tiến trình đang chờ resource
   vector<int> pendingResource;
   int lastCpuBusy;
 
@@ -60,6 +60,5 @@ class Scheduler {
   void completeResourceExecution(int &runningRes);
   void updateWaitingTime(int curRunningProcess);
   void determineLastCpuBusyTime();
-  void adjustWaitingTimeAfterResource();
   void writeOutput(string outputFileName);
 };

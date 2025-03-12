@@ -14,16 +14,15 @@ enum State {
 
 class Process {
  public:
-  int id;              // process number (1-indexed)
-  int arrival;         // arrival time to ready queue
-  vector<Task> tasks;  // bursts in order: always starting with a CPU burst.
-  int curTask;         // index of current burst in tasks
-  int remainingTime;   // remaining time for current burst
-  State state;         // current state of process
-  int finishTime;   // finish time (when the process completes its last burst)
-  int waitingTime;  // accumulated waiting time (while in CPU or resource
-  // queues)
-  int readyCpuTime;
+  int id;              // id của tiến trình (bắt đầu từ 1)
+  int arrival;         // thời điểm đến của tiến trình
+  vector<Task> tasks;  // thứ tự các task (CPU hoặc resource)
+  int curTask;         // index của task hiện tại
+  int remainingTime;   // thời gian còn lại của burst hiện tại
+  State state;         // trạng thái của tiến trình
+  int finishTime;   // thời gian kết thúc
+  int waitingTime;  // tổng thời gian chờ
+  int readyCpuTime; //thời gian sẵn sàng cho CPU
   Process();
 
   Process& operator=(const Process& p);

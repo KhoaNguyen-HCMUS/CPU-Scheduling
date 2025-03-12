@@ -131,12 +131,14 @@ void Scheduler::schedule() {
     time++;               // Tăng thời gian hệ thống
   }
   determineLastCpuBusyTime();  // Xác định thời gian cuối cùng CPU chạy
-  // adjustWaitingTimeAfterResource();  // Điều chỉnh thời gian chờ sau R
 }
 
 void Scheduler::handlePendingResources() {
+  // Xử lý các tiến trình chờ resource
   if (!pendingResource.empty()) {
+    // Nếu có tiến trình chờ resource
     for (int idx : pendingResource) {
+      // Duyệt qua các tiến trình chờ resource
       int resId = procList[idx].tasks[procList[idx].curTask].resourceId;
       procList[idx].state = READY_RES;
       (resId == 1 ? resQueue1 : resQueue2).push_back(idx);
@@ -146,6 +148,10 @@ void Scheduler::handlePendingResources() {
 }
 
 bool Scheduler::checkTermination() {
+  // Kiểm tra điều kiện kết thúc
+  // Nếu tất cả tiến trình đã chạy xong, CPU rãnh, không có tiến trình nào trong
+  // queue và không có resource nào đang chạy
+
   return finishedCount == numProc && runningCPU == -1 && cpuQueue.empty() &&
          runningRes1 == -1 && runningRes2 == -1 && resQueue1.empty() &&
          resQueue2.empty();
@@ -153,7 +159,9 @@ bool Scheduler::checkTermination() {
 
 void Scheduler::checkArrivals() {
   for (int i = 0; i < numProc; i++) {
+    // Kiểm tra các tiến trình chưa đến và đến đúng thời điểm
     if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
+      // Tiến trình mới đến
       procList[i].state = READY_CPU;
       procList[i].readyCpuTime = time;
 
@@ -164,6 +172,7 @@ void Scheduler::checkArrivals() {
 
 void Scheduler::scheduleFCFS() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
+    // Nếu CPU đang rãnh và có tiến trình trong queue
     runningCPU = cpuQueue.front();
     cpuQueue.pop_front();
     procList[runningCPU].state = RUNNING_CPU;
@@ -172,6 +181,7 @@ void Scheduler::scheduleFCFS() {
 
 void Scheduler::scheduleRR() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
+    // Nếu CPU đang rãnh và có tiến trình trong queue
     runningCPU = cpuQueue.front();
     cpuQueue.pop_front();
     procList[runningCPU].state = RUNNING_CPU;
@@ -181,6 +191,7 @@ void Scheduler::scheduleRR() {
 
 void Scheduler::scheduleSJF() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
+    // Nếu CPU đang rãnh và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
       return procList[a].remainingTime < procList[b].remainingTime;
     });
@@ -192,6 +203,7 @@ void Scheduler::scheduleSJF() {
 
 void Scheduler::scheduleSRTN() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
+    // Nếu CPU đang rãnh và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
       return procList[a].remainingTime < procList[b].remainingTime;
     });
@@ -199,12 +211,15 @@ void Scheduler::scheduleSRTN() {
     cpuQueue.erase(it);
     procList[runningCPU].state = RUNNING_CPU;
   } else if (runningCPU != -1 && !cpuQueue.empty()) {
+    // Nếu CPU đang chạy và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
+      // So sánh thời gian còn lại của CPU để chọn tiến trình chạy ngắn nhất
       return procList[a].remainingTime < procList[b].remainingTime;
     });
-    int candidate = *it;
+    int candidate = *it;  // Tiến trình có thời gian còn lại ngắn nhất
     if (procList[candidate].remainingTime <
         procList[runningCPU].remainingTime) {
+      // Nếu tiến trình mới ngắn hơn tiến trình đang chạy
       procList[runningCPU].state = READY_CPU;
       cpuQueue.push_back(runningCPU);
       runningCPU = candidate;
@@ -216,41 +231,53 @@ void Scheduler::scheduleSRTN() {
 
 void Scheduler::processCPUBurst() {
   if (runningCPU == -1) {
-    cpuTimeline.push_back("_");
+    cpuTimeline.push_back("_");  // CPU đang rãnh
     return;
   }
 
-  procList[runningCPU].remainingTime--;
-  cpuTimeline.push_back(to_string(procList[runningCPU].id));
+  procList[runningCPU].remainingTime--;  // Giảm thời gian còn lại của CPU
+  cpuTimeline.push_back(to_string(procList[runningCPU].id));  // Ghi timeline
 
   if (procList[runningCPU].remainingTime == 0) {
+    // Nếu CPU đã chạy xong
     completeCPUExecution();
   } else if (algorithm == 2 && --currentQuantum == 0) {
+    // Nếu là Round Robin và đã hết quantum
     procList[runningCPU].state = READY_CPU;
     cpuQueue.push_back(runningCPU);
     runningCPU = -1;
   }
 }
 
+// Xử lý khi một CPU đã chạy xong
 void Scheduler::completeCPUExecution() {
-  procList[runningCPU].curTask++;
+  procList[runningCPU].curTask++;  // Chuyển sang tác vụ tiếp theo
   if (procList[runningCPU].curTask < procList[runningCPU].tasks.size() &&
       !procList[runningCPU].tasks[procList[runningCPU].curTask].isCPU) {
+    // Nếu tiến trình cần chạy resource
     pendingResource.push_back(runningCPU);
   } else {
+    // Nếu tiến trình đã chạy hết tác vụ
     procList[runningCPU].state = FINISHED;
     procList[runningCPU].finishTime = time + 1;
     finishedCount++;
   }
+
+  // Đặt lại CPU về trạng thái rãnh
   runningCPU = -1;
 }
 
+// Xử lý khi một resource cần được chạy
 void Scheduler::scheduleResource(int resId) {
-  int &runningRes = (resId == 1) ? runningRes1 : runningRes2;
-  deque<int> &resQueue = (resId == 1) ? resQueue1 : resQueue2;
-  vector<string> &resTimeline = (resId == 1) ? resTimeline1 : resTimeline2;
+  int &runningRes =
+      (resId == 1) ? runningRes1 : runningRes2;  // Lưu resource đang chạy
+  deque<int> &resQueue =
+      (resId == 1) ? resQueue1 : resQueue2;  // Lấy queue của resource
+  vector<string> &resTimeline =
+      (resId == 1) ? resTimeline1 : resTimeline2;  // Lấy timeline của resource
 
   if (runningRes == -1 && !resQueue.empty()) {
+    // Nếu resource đang rãnh và có resource trong queue
     runningRes = resQueue.front();
     resQueue.pop_front();
     procList[runningRes].state = RUNNING_RES;
@@ -259,96 +286,78 @@ void Scheduler::scheduleResource(int resId) {
   }
 
   if (runningRes != -1) {
+    // Nếu resource đang chạy
     procList[runningRes].remainingTime--;
     resTimeline.push_back(to_string(procList[runningRes].id));
     if (procList[runningRes].remainingTime == 0)
       completeResourceExecution(runningRes);
   } else {
+    // Nếu resource không chạy
     resTimeline.push_back("_");
   }
 }
 
+// Xử lý khi một resource đã chạy xong (hoặc bị gián đoạn)
 void Scheduler::completeResourceExecution(int &runningRes) {
-  procList[runningRes].curTask++;
+  procList[runningRes].curTask++;  // Chuyển sang tác vụ tiếp theo
+
   if (procList[runningRes].curTask < procList[runningRes].tasks.size() &&
       procList[runningRes].tasks[procList[runningRes].curTask].isCPU) {
+    // Nếu resource chưa chạy hết tác vụ CPU
     procList[runningRes].state = READY_CPU;
     procList[runningRes].readyCpuTime = time;
     procList[runningRes].remainingTime =
         procList[runningRes].tasks[procList[runningRes].curTask].time;
     cpuQueue.push_back(runningRes);
   } else {
+    // Nếu resource đã chạy hết tác vụ
     procList[runningRes].state = FINISHED;
     procList[runningRes].finishTime = time + 1;
     finishedCount++;
   }
-  runningRes = -1;
+
+  runningRes = -1;  // Đặt lại resource đang chạy về trạng thái idle
 }
 
 void Scheduler::updateWaitingTime(int curRunningProcess) {
   for (int idx : cpuQueue) {
-    // Skip if this is the currently running process
+    // Bỏ qua tiến trình đang chạy
     if (idx == curRunningProcess) {
       continue;
     }
 
-    // Check conditions:
-    // 1. Process has arrived (time >= arrival)
-    // 2. Process is in READY_CPU state
-    // 3. Process is not running
-    // 4. For processes from resources: time > readyCpuTime
-    // 5. For new arrivals: time >= arrival (count from arrival time)
+    // Kiểm tra các điều kiện:
+    // 1. Tiến trình đã đến (thời gian hiện tại >= thời gian đến)
+    // 2. Tiến trình đang ở trạng thái READY_CPU
+    // 3. Tiến trình không đang chạy
+    // 4. Đối với tiến trình từ resource: thời gian hiện tại > thời điểm sẵn
+    // sàng CPU
+    // 5. Đối với tiến trình mới đến: thời gian hiện tại >= thời gian đến
     if (procList[idx].state == READY_CPU && idx != runningCPU) {
+      // Xử lý 2 trường hợp: tiến trình mới đến và tiến trình từ resource
       if (procList[idx].curTask == 0) {
-        // New arrival - count from arrival time
+        // Trường hợp 1: Tiến trình mới, chưa chạy lần nào
+        // Tính thời gian chờ khi tiến trình đã đến
         if (time >= procList[idx].arrival) {
           procList[idx].waitingTime++;
-          // cout << "Process " << idx + 1
-          //      << " waiting time: " << procList[idx].waitingTime << " at time
-          //      "
-          //      << time << endl;
         }
       } else {
-        // Process returning from resource
+        // Trường hợp 2: Tiến trình đã chạy xong resource
+        // Chỉ tính thời gian chờ sau khi đã sẵn sàng cho CPU
         if (time > procList[idx].readyCpuTime) {
           procList[idx].waitingTime++;
-          // cout << "Process " << idx + 1
-          //      << " waiting time: " << procList[idx].waitingTime << " at time
-          //      "
-          //      << time << endl;
         }
       }
     }
   }
 }
 
+// Xác định thời gian cuối cùng CPU chạy
 void Scheduler::determineLastCpuBusyTime() {
   for (int i = cpuTimeline.size() - 1; i >= 0; i--) {
     if (cpuTimeline[i] != "_") {
       lastCpuBusy = i;
       break;
-    }
-  }
-}
-
-void Scheduler::adjustWaitingTimeAfterResource() {
-  for (const auto &p : procList) {
-    // Check if process has multiple tasks
-    if (p.tasks.size() > 1) {
-      bool hasResourceFollowedByCPU = false;
-
-      // Check for pattern: Resource followed by CPU
-      for (size_t i = 0; i < p.tasks.size() - 1; i++) {
-        if (!p.tasks[i].isCPU && p.tasks[i + 1].isCPU) {
-          hasResourceFollowedByCPU = true;
-          break;
-        }
-      }
-
-      // If pattern found and process is finished, adjust waiting time
-      if (hasResourceFollowedByCPU && p.state == FINISHED) {
-        procList[p.id - 1].waitingTime--;  // Subtract one unit
-      }
     }
   }
 }
