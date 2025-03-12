@@ -58,7 +58,7 @@ class Scheduler {
   void completeCPUExecution();
   void scheduleResource(int resId);
   void completeResourceExecution(int &runningRes);
-  void updateWaitingTime();
+  void updateWaitingTime(int curRunningProcess);
   void determineLastCpuBusyTime();
   void adjustWaitingTimeAfterResource();
   void writeOutput(string outputFileName);

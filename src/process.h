@@ -23,7 +23,7 @@ class Process {
   int finishTime;   // finish time (when the process completes its last burst)
   int waitingTime;  // accumulated waiting time (while in CPU or resource
   // queues)
-
+  int readyCpuTime;
   Process();
 
   Process& operator=(const Process& p);

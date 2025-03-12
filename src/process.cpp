@@ -8,6 +8,7 @@ Process::Process() {
   state = NOT_ARRIVED;
   finishTime = 0;
   waitingTime = 0;
+  readyCpuTime = -1;
 }
 
 Process& Process::operator=(const Process& p) {
@@ -20,5 +21,6 @@ Process& Process::operator=(const Process& p) {
   state = p.state;
   finishTime = p.finishTime;
   waitingTime = p.waitingTime;
+  readyCpuTime = p.readyCpuTime;
   return *this;
 }

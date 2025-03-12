@@ -118,14 +118,20 @@ void Scheduler::schedule() {
       scheduleSJF();
     else if (algorithm == 4)
       scheduleSRTN();
-    processCPUBurst();    // Xử lý CPU đang chạy
+
+    int currentRunningProcess =
+        runningCPU;  // Lưu tiến trình đang chạy trước khi xử lý burst
+
+    processCPUBurst();  // Xử lý CPU đang chạy
+    updateWaitingTime(
+        currentRunningProcess);  // Cập nhật thời gian chờ (nếu có)
+
     scheduleResource(1);  // Xử lý R1
     scheduleResource(2);  // Xử lý R2
-    updateWaitingTime();  // Cập nhật thời gian chờ (nếu có)
     time++;               // Tăng thời gian hệ thống
   }
-  determineLastCpuBusyTime();        // Xác định thời gian cuối cùng CPU chạy
-  adjustWaitingTimeAfterResource();  // Điều chỉnh thời gian chờ sau R
+  determineLastCpuBusyTime();  // Xác định thời gian cuối cùng CPU chạy
+  // adjustWaitingTimeAfterResource();  // Điều chỉnh thời gian chờ sau R
 }
 
 void Scheduler::handlePendingResources() {
@@ -149,6 +155,8 @@ void Scheduler::checkArrivals() {
   for (int i = 0; i < numProc; i++) {
     if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
       procList[i].state = READY_CPU;
+      procList[i].readyCpuTime = time;
+
       cpuQueue.push_back(i);
     }
   }
@@ -265,6 +273,7 @@ void Scheduler::completeResourceExecution(int &runningRes) {
   if (procList[runningRes].curTask < procList[runningRes].tasks.size() &&
       procList[runningRes].tasks[procList[runningRes].curTask].isCPU) {
     procList[runningRes].state = READY_CPU;
+    procList[runningRes].readyCpuTime = time;
     procList[runningRes].remainingTime =
         procList[runningRes].tasks[procList[runningRes].curTask].time;
     cpuQueue.push_back(runningRes);
@@ -276,8 +285,39 @@ void Scheduler::completeResourceExecution(int &runningRes) {
   runningRes = -1;
 }
 
-void Scheduler::updateWaitingTime() {
-  for (int idx : cpuQueue) procList[idx].waitingTime++;
+void Scheduler::updateWaitingTime(int curRunningProcess) {
+  for (int idx : cpuQueue) {
+    // Skip if this is the currently running process
+    if (idx == curRunningProcess) {
+      continue;
+    }
+
+    // Check conditions:
+    // 1. Process has arrived (time >= arrival)
+    // 2. Process is in READY_CPU state
+    // 3. Process is not running
+    // 4. For processes from resources: time > readyCpuTime
+    // 5. For new arrivals: time >= arrival (count from arrival time)
+    if (procList[idx].state == READY_CPU && idx != runningCPU) {
+      if (procList[idx].curTask == 0) {
+        // New arrival - count from arrival time
+        if (time >= procList[idx].arrival) {
+          procList[idx].waitingTime++;
+          cout << "Process " << idx + 1
+               << " waiting time: " << procList[idx].waitingTime << " at time "
+               << time << endl;
+        }
+      } else {
+        // Process returning from resource
+        if (time > procList[idx].readyCpuTime) {
+          procList[idx].waitingTime++;
+          cout << "Process " << idx + 1
+               << " waiting time: " << procList[idx].waitingTime << " at time "
+               << time << endl;
+        }
+      }
+    }
+  }
 }
 
 void Scheduler::determineLastCpuBusyTime() {
