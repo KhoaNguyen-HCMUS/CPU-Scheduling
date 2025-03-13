@@ -159,12 +159,9 @@ bool Scheduler::checkTermination() {
 
 void Scheduler::checkArrivals() {
   for (int i = 0; i < numProc; i++) {
-    // Kiểm tra các tiến trình chưa đến và đến đúng thời điểm
     if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
-      // Tiến trình mới đến
       procList[i].state = READY_CPU;
       procList[i].readyCpuTime = time;
-
       cpuQueue.push_back(i);
     }
   }
@@ -193,7 +190,11 @@ void Scheduler::scheduleSJF() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
     // Nếu CPU đang rãnh và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-      return procList[a].remainingTime < procList[b].remainingTime;
+      if (procList[a].remainingTime != procList[b].remainingTime) {
+        return procList[a].remainingTime < procList[b].remainingTime;
+      }
+      // Nếu remaining time bằng nhau, ưu tiên tiến trình đến sau
+      return procList[a].arrival > procList[b].arrival;
     });
     runningCPU = *it;
     cpuQueue.erase(it);
@@ -205,7 +206,11 @@ void Scheduler::scheduleSRTN() {
   if (runningCPU == -1 && !cpuQueue.empty()) {
     // Nếu CPU đang rãnh và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-      return procList[a].remainingTime < procList[b].remainingTime;
+      if (procList[a].remainingTime != procList[b].remainingTime) {
+        return procList[a].remainingTime < procList[b].remainingTime;
+      }
+      // Nếu remaining time bằng nhau, ưu tiên tiến trình đến sau
+      return procList[a].arrival > procList[b].arrival;
     });
     runningCPU = *it;
     cpuQueue.erase(it);
@@ -214,12 +219,21 @@ void Scheduler::scheduleSRTN() {
     // Nếu CPU đang chạy và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
       // So sánh thời gian còn lại của CPU để chọn tiến trình chạy ngắn nhất
-      return procList[a].remainingTime < procList[b].remainingTime;
+      if (procList[a].remainingTime != procList[b].remainingTime) {
+        return procList[a].remainingTime < procList[b].remainingTime;
+      }
+      // Nếu remaining time bằng nhau, ưu tiên tiến trình đến sau
+      return procList[a].arrival > procList[b].arrival;
     });
     int candidate = *it;  // Tiến trình có thời gian còn lại ngắn nhất
+
     if (procList[candidate].remainingTime <
-        procList[runningCPU].remainingTime) {
-      // Nếu tiến trình mới ngắn hơn tiến trình đang chạy
+            procList[runningCPU].remainingTime ||
+        (procList[candidate].remainingTime ==
+             procList[runningCPU].remainingTime &&
+         procList[candidate].arrival > procList[runningCPU].arrival)) {
+      // Preempt nếu tiến trình mới có remaining time ngắn hơn
+      // hoặc bằng nhau nhưng đến sau
       procList[runningCPU].state = READY_CPU;
       cpuQueue.push_back(runningCPU);
       runningCPU = candidate;
@@ -231,21 +245,30 @@ void Scheduler::scheduleSRTN() {
 
 void Scheduler::processCPUBurst() {
   if (runningCPU == -1) {
-    cpuTimeline.push_back("_");  // CPU đang rãnh
+    cpuTimeline.push_back("_");
     return;
   }
 
-  procList[runningCPU].remainingTime--;  // Giảm thời gian còn lại của CPU
-  cpuTimeline.push_back(to_string(procList[runningCPU].id));  // Ghi timeline
+  procList[runningCPU].remainingTime--;
+  cpuTimeline.push_back(to_string(procList[runningCPU].id));
 
   if (procList[runningCPU].remainingTime == 0) {
-    // Nếu CPU đã chạy xong
     completeCPUExecution();
-  } else if (algorithm == 2 && --currentQuantum == 0) {
-    // Nếu là Round Robin và đã hết quantum
-    procList[runningCPU].state = READY_CPU;
-    cpuQueue.push_back(runningCPU);
-    runningCPU = -1;
+  } else if (algorithm == 2) {
+    currentQuantum--;
+
+    if (currentQuantum == 0) {
+      // Lưu process hiện tại
+      int currentProcess = runningCPU;
+
+      // Reset CPU và trạng thái của process hiện tại
+      runningCPU = -1;
+      procList[currentProcess].state = READY_CPU;
+
+      // Thêm process hiện tại vào cuối queue ngay lập tức
+      // (thời điểm time hiện tại)
+      cpuQueue.push_back(currentProcess);
+    }
   }
 }
 
