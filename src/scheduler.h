@@ -42,6 +42,9 @@ class Scheduler {
   vector<int> pendingResource;
   int lastCpuBusy;
 
+  // Đánh dấu các tiến trình đã chạy xong task chuẩn bị quay lại cpu
+  vector<int> readyToRun;
+
  public:
   Scheduler();
 

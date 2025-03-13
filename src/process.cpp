@@ -9,7 +9,6 @@ Process::Process() {
   finishTime = 0;
   waitingTime = 0;
   readyCpuTime = -1;
-  wasCpuRun = 0;
 }
 
 Process& Process::operator=(const Process& p) {

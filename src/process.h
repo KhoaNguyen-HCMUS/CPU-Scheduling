@@ -23,8 +23,7 @@ class Process {
   int finishTime;      // thời gian kết thúc
   int waitingTime;     // tổng thời gian chờ
   int readyCpuTime;    // thời gian sẵn sàng cho CPU
-  int wasCpuRun;  // biến đánh dấu tiến trình mới đến và chưa chạy CPU 0: chưa
-                  // chạy hoặc mới từ resource lên, 1: đã chạy
+                       // chạy hoặc mới từ resource lên, 1: đã chạy
   Process();
 
   Process& operator=(const Process& p);
