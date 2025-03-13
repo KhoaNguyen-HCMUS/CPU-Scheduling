@@ -53,7 +53,6 @@ void Scheduler::readInput(string inputFileName) {
     string token;
     // The rest tokens represent bursts.
 
-    // Add this at the start of main()
     while (iss >> token) {
       Task t;
       // Check if token is a resource burst (contains a '(')
@@ -163,7 +162,14 @@ void Scheduler::checkArrivals(int currentTime) {
         procList[i].arrival == currentTime) {
       procList[i].state = READY_CPU;
       procList[i].readyCpuTime = currentTime;
-      cpuQueue.push_back(i);
+      // Nếu tiến trình đầu tiên trong hàng đợi có biến wasCpuRun = 1 thì tiến
+      // trình mới đẩy vào đầu hàng đợi, ngược lại đẩy vào cuối hàng đợi
+      if (cpuQueue.empty() || procList[cpuQueue.front()].wasCpuRun == 1 &&
+                                  procList[i].wasCpuRun == 0) {
+        cpuQueue.push_front(i);
+      } else {
+        cpuQueue.push_back(i);
+      }
     }
   }
 }
@@ -173,6 +179,8 @@ void Scheduler::scheduleFCFS() {
     // Nếu CPU đang rãnh và có tiến trình trong queue
     runningCPU = cpuQueue.front();
     cpuQueue.pop_front();
+    procList[runningCPU].wasCpuRun = 1;
+
     procList[runningCPU].state = RUNNING_CPU;
   }
 }
@@ -183,6 +191,7 @@ void Scheduler::scheduleRR() {
     runningCPU = cpuQueue.front();
     cpuQueue.pop_front();
     procList[runningCPU].state = RUNNING_CPU;
+    procList[runningCPU].wasCpuRun = 1;
     currentQuantum = quantum;
   }
 }
@@ -200,6 +209,7 @@ void Scheduler::scheduleSJF() {
     runningCPU = *it;
     cpuQueue.erase(it);
     procList[runningCPU].state = RUNNING_CPU;
+    procList[runningCPU].wasCpuRun = 1;
   }
 }
 
@@ -216,10 +226,13 @@ void Scheduler::scheduleSRTN() {
     runningCPU = *it;
     cpuQueue.erase(it);
     procList[runningCPU].state = RUNNING_CPU;
+    procList[runningCPU].wasCpuRun = 1;
+
   } else if (runningCPU != -1 && !cpuQueue.empty()) {
     // Nếu CPU đang chạy và có tiến trình trong queue
     auto it = min_element(cpuQueue.begin(), cpuQueue.end(), [&](int a, int b) {
-      // So sánh thời gian còn lại của CPU để chọn tiến trình chạy ngắn nhất
+      // So sánh thời gian còn lại của CPU để chọn tiến trình chạy ngắn
+      // nhất
       if (procList[a].remainingTime != procList[b].remainingTime) {
         return procList[a].remainingTime < procList[b].remainingTime;
       }
@@ -239,7 +252,9 @@ void Scheduler::scheduleSRTN() {
       cpuQueue.push_back(runningCPU);
       runningCPU = candidate;
       cpuQueue.erase(it);
+
       procList[runningCPU].state = RUNNING_CPU;
+      procList[runningCPU].wasCpuRun = 1;
     }
   }
 }
@@ -269,6 +284,7 @@ void Scheduler::processCPUBurst() {
       // Reset CPU và trạng thái của process hiện tại
       runningCPU = -1;
       procList[currentProcess].state = READY_CPU;
+      procList[currentProcess].wasCpuRun = 1;
 
       // Thêm process hiện tại vào cuối queue ngay lập tức
       // (thời điểm time hiện tại)
@@ -337,6 +353,7 @@ void Scheduler::completeResourceExecution(int &runningRes) {
     procList[runningRes].remainingTime =
         procList[runningRes].tasks[procList[runningRes].curTask].time;
     cpuQueue.push_back(runningRes);
+    procList[runningRes].wasCpuRun = 0;
   } else {
     // Nếu resource đã chạy hết tác vụ
     procList[runningRes].state = FINISHED;

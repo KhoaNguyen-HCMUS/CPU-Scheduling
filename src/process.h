@@ -20,9 +20,11 @@ class Process {
   int curTask;         // index của task hiện tại
   int remainingTime;   // thời gian còn lại của burst hiện tại
   State state;         // trạng thái của tiến trình
-  int finishTime;   // thời gian kết thúc
-  int waitingTime;  // tổng thời gian chờ
-  int readyCpuTime; //thời gian sẵn sàng cho CPU
+  int finishTime;      // thời gian kết thúc
+  int waitingTime;     // tổng thời gian chờ
+  int readyCpuTime;    // thời gian sẵn sàng cho CPU
+  int wasCpuRun;  // biến đánh dấu tiến trình mới đến và chưa chạy CPU 0: chưa
+                  // chạy hoặc mới từ resource lên, 1: đã chạy
   Process();
 
   Process& operator=(const Process& p);
