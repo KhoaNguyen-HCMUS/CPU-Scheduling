@@ -109,7 +109,7 @@ void Scheduler::schedule() {
   while (true) {
     handlePendingResources();       // Xử lý các R đang chờ
     if (checkTermination()) break;  // Kiểm tra điều kiện kết thúc
-    checkArrivals();                // Kiểm tra các tiến trình mới
+    checkArrivals(time);            // Kiểm tra các tiến trình mới
     if (algorithm == 1)
       scheduleFCFS();
     else if (algorithm == 2)
@@ -157,11 +157,12 @@ bool Scheduler::checkTermination() {
          resQueue2.empty();
 }
 
-void Scheduler::checkArrivals() {
+void Scheduler::checkArrivals(int currentTime) {
   for (int i = 0; i < numProc; i++) {
-    if (procList[i].state == NOT_ARRIVED && procList[i].arrival == time) {
+    if (procList[i].state == NOT_ARRIVED &&
+        procList[i].arrival == currentTime) {
       procList[i].state = READY_CPU;
-      procList[i].readyCpuTime = time;
+      procList[i].readyCpuTime = currentTime;
       cpuQueue.push_back(i);
     }
   }
@@ -256,6 +257,10 @@ void Scheduler::processCPUBurst() {
     completeCPUExecution();
   } else if (algorithm == 2) {
     currentQuantum--;
+
+    int nextTime = time + 1;
+    checkArrivals(nextTime);  // Kiểm tra tiến trình mới đến trong thời điểm
+                              // tiếp theo để ưu tiên chạy tiến trình mới
 
     if (currentQuantum == 0) {
       // Lưu process hiện tại

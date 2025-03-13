@@ -49,7 +49,7 @@ class Scheduler {
   void schedule();
   void handlePendingResources();
   bool checkTermination();
-  void checkArrivals();
+  void checkArrivals(int currentTime);
   void scheduleFCFS();
   void scheduleRR();
   void scheduleSJF();
