@@ -32,9 +32,9 @@ void Scheduler::readInput(string inputFileName) {
   procList.resize(numProc);
 
   string dummy;
-  getline(fin, dummy);  // consume rest of line
+  getline(fin, dummy);
   std::map<std::string, int> resourceMap;
-  // Parse each process’s description.
+  // Đọc thông tin của các tiến trình
   for (int i = 0; i < numProc; i++) {
     Process p;
     p.id = i + 1;
@@ -51,11 +51,11 @@ void Scheduler::readInput(string inputFileName) {
     istringstream iss(line);
     iss >> p.arrival;
     string token;
-    // The rest tokens represent bursts.
+    // Đọc các tác vụ của tiến trình
 
     while (iss >> token) {
       Task t;
-      // Check if token is a resource burst (contains a '(')
+      // Kiểm tra xem tác vụ là CPU hay resource có dạng "time(resource)"
       if (token.find('(') != string::npos) {
         size_t pos = token.find('(');
         size_t pos2 = token.find(')');
@@ -69,9 +69,9 @@ void Scheduler::readInput(string inputFileName) {
         t.time = stoi(timeStr);
         t.isCPU = false;
 
-        // Modified resource ID assignment
+        // Gán id cho resource
         if (resourceMap.find(resStr) == resourceMap.end()) {
-          // New resource found
+          // Resource mới
           int newId = resourceMap.size() + 1;
           if (newId > 2) {
             throw std::runtime_error(
@@ -81,7 +81,7 @@ void Scheduler::readInput(string inputFileName) {
           t.resourceId = newId;
 
         } else {
-          // Existing resource
+          // resource đã tồn tại
           t.resourceId = resourceMap[resStr];
         }
       } else {

@@ -1,11 +1,5 @@
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <deque>
 #include <string>
-#include <algorithm>
-#include <map>
 
 #include "task.h"
 #include "process.h"
